@@ -42,8 +42,9 @@ pipeline {
         // ── 1. Checkout ──────────────────────────────────────────
         stage('Checkout') {
             steps {
-                checkout scm
-                echo "✔ Checked out branch: ${env.BRANCH_NAME ?: 'unknown'} @ ${env.GIT_COMMIT?.take(8) ?: 'unknown'}"
+                git branch: 'main',
+                    url: 'https://github.com/jhee1995/telegram_messenger.git'
+                echo "✔ Checked out branch: ${env.GIT_BRANCH ?: 'unknown'} @ ${env.GIT_COMMIT?.take(8) ?: 'unknown'}"
             }
         }
 
@@ -150,7 +151,7 @@ pipeline {
         // ── 5. Docker Build (main branch only) ───────────────────
         stage('Docker: Build Images') {
             when {
-                branch 'main'
+                expression { env.GIT_BRANCH?.endsWith('main') }
             }
             steps {
                 script {
@@ -179,7 +180,7 @@ pipeline {
         // ── 6. Deploy (main branch only) ─────────────────────────
         stage('Deploy') {
             when {
-                branch 'main'
+                expression { env.GIT_BRANCH?.endsWith('main') }
             }
             steps {
                 script {
@@ -207,7 +208,7 @@ pipeline {
         // ── 7. Health Check ──────────────────────────────────────
         stage('Health Check') {
             when {
-                branch 'main'
+                expression { env.GIT_BRANCH?.endsWith('main') }
             }
             steps {
                 sh '''
