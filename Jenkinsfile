@@ -17,6 +17,10 @@
 pipeline {
     agent any
 
+    tools {
+        nodejs 'Node_24' // Configurado en Global Tools
+    }
+
     options {
         timeout(time: 30, unit: 'MINUTES')
         buildDiscarder(logRotator(numToKeepStr: '10'))
@@ -25,7 +29,7 @@ pipeline {
 
     environment {
         // Non-secret values — safe to define here
-        NODE_VERSION    = '18'
+        NODE_VERSION    = '24'
         BACKEND_DIR     = 'backend'
         FRONTEND_DIR    = 'frontend'
         BACKEND_IMAGE   = 'telegram-messenger-backend'
