@@ -214,7 +214,7 @@ pipeline {
                 sh '''
                     echo "Waiting for services to be healthy..."
                     sleep 15
-                    wget -qO- http://localhost:3001/health | grep -q '"status":"ok"' && \
+                    wget -qO- http://host.docker.internal:3001/health | grep -q '"status":"ok"' && \
                         echo "✔ Backend healthy" || \
                         (echo "✖ Backend health check FAILED" && exit 1)
                 '''
@@ -232,10 +232,7 @@ pipeline {
         }
         always {
             // Clean workspace after build to prevent credential leakage between builds
-            cleanWs(cleanWhenNotBuilt: false,
-                    cleanWhenAborted:  true,
-                    cleanWhenFailure:  true,
-                    cleanWhenSuccess:  true)
+            deleteDir()
         }
     }
 }

@@ -1,0 +1,36 @@
+# ─────────────────────────────────────────────────────────────────
+# docker-compose.jenkins.yml — Jenkins CI server
+#
+# Levanta Jenkins con acceso al daemon de Docker del host para que
+# el pipeline pueda ejecutar `docker build` / `docker compose`.
+#
+# Usage:
+#   docker compose -f docker-compose.jenkins.yml up -d --build
+#   # Obtener la contraseña inicial de admin:
+#   docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+# ─────────────────────────────────────────────────────────────────
+name: jenkins-ci
+
+services:
+  jenkins:
+    build:
+      context: .
+      dockerfile: Dockerfile.jenkins
+    image: jenkins-with-docker:lts
+    container_name: jenkins
+    restart: unless-stopped
+    ports:
+      - "8081:8080"    # Jenkins UI / webhooks (8081 porque la app usa 8080)
+      - "50000:50000"  # Agentes JNLP
+    extra_hosts:
+      # Permite que Jenkins alcance servicios del host (p.ej. backend en :3001)
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      # Acceso al daemon Docker del host (requerido por el pipeline)
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      JAVA_OPTS: "-Djenkins.install.runSetupWizard=true"
+
+volumes:
+  jenkins_home:
