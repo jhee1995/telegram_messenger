@@ -1,0 +1,64 @@
+name: "telegram-messenger"
+version: "1.0.0"
+description: "Simple Telegram messaging tool — React SPA frontend + Node.js Express backend with a single send-message endpoint."
+
+# ─────────────────────────────────────────────
+# DIRECTORY LAYOUT
+# All directories listed here are created by jc.structure-builder
+# ─────────────────────────────────────────────
+directories:
+  # ── Backend (Express MVC) ──
+  - "backend/src/controllers"
+  - "backend/src/routes"
+  - "backend/src/services"
+  - "backend/src/middlewares"
+  - "backend/src/config"
+
+  # ── Frontend (React + Vite) ──
+  - "frontend/src/components"
+  - "frontend/src/pages"
+  - "frontend/src/services"
+  - "frontend/src/assets"
+  - "frontend/src/styles"
+
+  # ── Project specification & docs ──
+  - "Project-specification/backlog"
+  - "docs/adr"
+
+  # ── CI/CD ──
+  - ".jenkins"
+
+files:
+  - path: "backend/.env.example"
+    description: "Template for required backend environment variables"
+  - path: "frontend/.env.example"
+    description: "Template for required frontend environment variables"
+  - path: "backend/package.json"
+    description: "Node.js backend manifest"
+  - path: "frontend/package.json"
+    description: "React frontend manifest"
+  - path: ".gitignore"
+    description: "Root gitignore — excludes .env files"
+  - path: "Jenkinsfile"
+    description: "Jenkins pipeline definition"
+  - path: "README.md"
+    description: "Project overview and setup guide"
+
+env_vars:
+  backend:
+    - name: "PORT"
+      example: "3001"
+      required: true
+    - name: "TELEGRAM_BOT_TOKEN"
+      example: "123456789:ABCDEF..."
+      required: true
+    - name: "TELEGRAM_API_URL"
+      example: "https://api.telegram.org"
+      required: true
+    - name: "FRONTEND_URL"
+      example: "http://localhost:5173"
+      required: true
+  frontend:
+    - name: "VITE_BACKEND_URL"
+      example: "http://localhost:3001"
+      required: true

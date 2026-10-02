@@ -1,0 +1,17 @@
+# .gitleaks.toml — Secret scanner configuration
+# Used by Jenkins pipeline Stage: Secret Scan
+
+title = "telegram-messenger gitleaks config"
+
+[allowlist]
+  description = "Allowlisted files and patterns that are safe to commit"
+  paths = [
+    # .env.example files contain only placeholder values — never real secrets
+    '''.env\.example$''',
+    # Generated lockfiles — no secrets
+    '''package-lock\.json$''',
+    # Documentation examples
+    '''docs/.*''',
+    '''Project-specification/.*''',
+    '''README\.md$''',
+  ]

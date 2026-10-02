@@ -1,0 +1,38 @@
+project:
+  name: "telegram-messenger"
+  package_name: "telegram_messenger"
+  rbac_roles: []  # No authentication required — open internal tool
+
+architecture:
+  pattern: "MVC (Model-View-Controller)"
+  description: "Traditional MVC separation. Backend exposes a single REST endpoint via Express. Frontend is a standalone React SPA."
+
+stack:
+  backend:
+    runtime: "Node.js"
+    framework: "Express"
+    version_target: ">=18.x"
+  frontend:
+    framework: "React"
+    bundler: "Vite"
+    styling: "CSS Modules / plain CSS (minimalist light palette)"
+  database: "None"
+  telegram:
+    client_library: "node-telegram-bot-api"
+    config_source: ".env"
+
+environment:
+  strategy: "All secrets and connection values in .env — no hardcoded values in source code"
+  required_vars:
+    - TELEGRAM_BOT_TOKEN
+    - TELEGRAM_API_URL
+    - PORT
+    - FRONTEND_URL
+
+ci_cd:
+  platform: "Jenkins"
+  repository: "https://github.com/jhee1995/telegram_messenger.git"
+  cloud: "To be determined by CI/CD pipeline"
+
+setup:
+  project_structure: "completed"

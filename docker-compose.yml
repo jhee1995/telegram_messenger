@@ -1,0 +1,74 @@
+# ─────────────────────────────────────────────────────────────────
+# docker-compose.yml — production stack
+#
+# ⚠️  All secrets (TELEGRAM_BOT_TOKEN, etc.) must be set in the
+#     shell environment or via Jenkins credentials injection BEFORE
+#     running docker compose up. NEVER hardcode values here.
+#
+# Usage:
+#   export TELEGRAM_BOT_TOKEN=<your_token>
+#   export FRONTEND_URL=http://localhost:8080
+#   docker compose up -d
+# ─────────────────────────────────────────────────────────────────
+name: telegram-messenger
+
+services:
+
+  # ── Backend (Express API) ──────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: telegram-messenger-backend:latest
+    container_name: tg_backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      # Secrets are injected from host environment or Jenkins credentials.
+      # Never define actual values here.
+      TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN}"
+      TELEGRAM_API_URL: "${TELEGRAM_API_URL:-https://api.telegram.org}"
+      FRONTEND_URL: "${FRONTEND_URL}"
+      APP_SECRET: "${APP_SECRET}"
+      RATE_LIMIT_MAX: "${RATE_LIMIT_MAX:-20}"
+      RATE_LIMIT_WINDOW_MS: "${RATE_LIMIT_WINDOW_MS:-60000}"
+    expose:
+      - "3001"
+    networks:
+      - tg_net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ── Frontend (React SPA served by Nginx) ──────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # VITE_BACKEND_URL must point to the publicly reachable backend.
+        VITE_BACKEND_URL: "${VITE_BACKEND_URL:-http://localhost:3001}"
+    image: telegram-messenger-frontend:latest
+    container_name: tg_frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-8080}:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - tg_net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+networks:
+  tg_net:
+    driver: bridge
