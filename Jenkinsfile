@@ -20,7 +20,6 @@ pipeline {
 
     tools {
         nodejs 'Node_24' // Configurado en Global Tools
-        sonarScanner 'SonarQubeScanner' // Configurado en Global Tools
     }
 
     options {
@@ -76,26 +75,32 @@ pipeline {
         // ── 3. SonarQube Analysis ────────────────────────────────
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('SonarQube') {
-                    sh '''
-                        # Asegura compatibilidad si no existe carpeta src en la raíz (estructura monorepo)
-                        if [ ! -d "src" ]; then
-                            ln -s frontend/src src 2>/dev/null || mkdir -p src
-                        fi
-                        if [ ! -f "coverage/lcov.info" ]; then
-                            mkdir -p coverage
-                            touch coverage/lcov.info
-                        fi
+                script {
+                    // Obtiene la ruta del scanner configurado en Global Tools (hudson.plugins.sonar.SonarRunnerInstallation)
+                    def scannerHome = tool name: 'SonarQubeScanner', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
+                    withSonarQubeEnv('SonarQube') {
+                        withEnv(["PATH+SONAR=${scannerHome}/bin"]) {
+                            sh '''
+                                # Asegura compatibilidad si no existe carpeta src en la raíz (estructura monorepo)
+                                if [ ! -d "src" ]; then
+                                    ln -s frontend/src src 2>/dev/null || mkdir -p src
+                                fi
+                                if [ ! -f "coverage/lcov.info" ]; then
+                                    mkdir -p coverage
+                                    touch coverage/lcov.info
+                                fi
 
-                        sonar-scanner \
-                        -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                        -Dsonar.projectName=${SONAR_PROJECT_NAME} \
-                        -Dsonar.sources=src \
-                        -Dsonar.host.url=http://localhost:9000 \
-                        -Dsonar.login=${SONAR_AUTH_TOKEN} \
-                        -Dsonar.javascript.node=${NODEJS_HOME}/bin/node \
-                        -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
-                    '''
+                                sonar-scanner \
+                                -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                                -Dsonar.projectName=${SONAR_PROJECT_NAME} \
+                                -Dsonar.sources=src \
+                                -Dsonar.host.url=http://localhost:9000 \
+                                -Dsonar.login=${SONAR_AUTH_TOKEN} \
+                                -Dsonar.javascript.node=${NODEJS_HOME}/bin/node \
+                                -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+                            '''
+                        }
+                    }
                 }
             }
         }
