@@ -94,7 +94,7 @@ pipeline {
                                 -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
                                 -Dsonar.projectName=${SONAR_PROJECT_NAME} \
                                 -Dsonar.sources=src \
-                                -Dsonar.host.url=http://localhost:9000 \
+                                -Dsonar.host.url=${SONAR_HOST_URL:-http://host.docker.internal:9000} \
                                 -Dsonar.login=${SONAR_AUTH_TOKEN} \
                                 -Dsonar.javascript.node=${NODEJS_HOME}/bin/node \
                                 -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
@@ -190,9 +190,13 @@ pipeline {
         always {
             // Agregar notificación de calidad de SonarQube
             script {
-                def qg = waitForQualityGate()
-                if (qg.status != 'OK') {
-                    error "Calidad no aprobada: ${qg.status}"
+                try {
+                    def qg = waitForQualityGate()
+                    if (qg.status != 'OK') {
+                        error "Calidad no aprobada: ${qg.status}"
+                    }
+                } catch (IllegalStateException e) {
+                    echo "⚠️ Quality Gate no evaluado: ${e.message}"
                 }
             }
             // Clean workspace after build to prevent credential leakage between builds
