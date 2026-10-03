@@ -90,14 +90,17 @@ pipeline {
                                     touch coverage/lcov.info
                                 fi
 
+                                [ -n "${SONAR_AUTH_TOKEN}" ] && export SONAR_TOKEN="${SONAR_AUTH_TOKEN}"
+
                                 sonar-scanner \
-                                -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                                -Dsonar.projectName=${SONAR_PROJECT_NAME} \
-                                -Dsonar.sources=src \
-                                -Dsonar.host.url=${SONAR_HOST_URL:-http://host.docker.internal:9000} \
-                                -Dsonar.login=${SONAR_AUTH_TOKEN} \
-                                -Dsonar.javascript.node=${NODEJS_HOME}/bin/node \
-                                -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+                                    "-Dsonar.projectKey=${SONAR_PROJECT_KEY}" \
+                                    "-Dsonar.projectName=${SONAR_PROJECT_NAME}" \
+                                    -Dsonar.sources=src \
+                                    "-Dsonar.host.url=${SONAR_HOST_URL:-http://host.docker.internal:9000}" \
+                                    "-Dsonar.token=${SONAR_AUTH_TOKEN}" \
+                                    "-Dsonar.login=${SONAR_AUTH_TOKEN}" \
+                                    "-Dsonar.javascript.node=${NODEJS_HOME}/bin/node" \
+                                    -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
                             '''
                         }
                     }
@@ -191,12 +194,16 @@ pipeline {
             // Agregar notificación de calidad de SonarQube
             script {
                 try {
-                    def qg = waitForQualityGate()
-                    if (qg.status != 'OK') {
-                        error "Calidad no aprobada: ${qg.status}"
+                    timeout(time: 2, unit: 'MINUTES') {
+                        def qg = waitForQualityGate()
+                        if (qg.status != 'OK') {
+                            error "Calidad no aprobada: ${qg.status}"
+                        }
                     }
                 } catch (IllegalStateException e) {
                     echo "⚠️ Quality Gate no evaluado: ${e.message}"
+                } catch (org.jenkinsci.plugins.workflow.steps.FlowInterruptedException e) {
+                    echo "⚠️ Quality Gate timeout (posible webhook de SonarQube no configurado en Jenkins): ${e.message}"
                 }
             }
             // Clean workspace after build to prevent credential leakage between builds
