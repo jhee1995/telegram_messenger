@@ -13,8 +13,8 @@ deployment:
   guide: "docs/vercel-deployment-guide.md"
   dockerfiles: ["backend/Dockerfile", "frontend/Dockerfile"]
   compose: "docker-compose.yml"
-  ci_platform: "Jenkins"
-  pipeline: "Jenkinsfile"
+  ci_platform: "GitHub Actions & Jenkins"
+  pipeline: ".github/workflows/ci.yml"
 
 gates:
   analyst:

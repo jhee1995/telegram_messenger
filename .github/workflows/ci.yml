@@ -1,0 +1,115 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-and-test:
+    name: Lint, Test & Compile
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Secret Scan (Gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js Runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      # ── 1. Backend Dependencies & Quality Checks ─────────────────
+      - name: Install Backend Dependencies
+        run: npm --prefix backend ci
+
+      - name: Lint Backend (ESLint)
+        run: npm --prefix backend run lint
+
+      - name: Run Backend Unit & Integration Tests (Jest)
+        run: npm --prefix backend run test:coverage
+        env:
+          PORT: 3001
+          NODE_ENV: test
+          FRONTEND_URL: http://localhost:5173
+          TELEGRAM_BOT_TOKEN: mock_telegram_bot_token_for_ci_tests
+          TELEGRAM_API_URL: https://api.telegram.org
+
+      # ── 2. Frontend Dependencies & Build Verification ────────────
+      - name: Install Frontend Dependencies
+        run: npm --prefix frontend install --include=dev
+
+      - name: Lint Frontend (ESLint)
+        run: npm --prefix frontend run lint
+
+      - name: Compile Frontend (Vite Build)
+        run: npm --prefix frontend run build
+        env:
+          VITE_BACKEND_URL: ''
+
+      # ── 3. Health Check & Serverless Entrypoint Verification ─────
+      - name: Verify Serverless Handler & Health Endpoint
+        run: |
+          echo "Starting backend health verification..."
+          node -e "
+            const app = require('./api/index.js');
+            const http = require('http');
+            const server = http.createServer(app);
+            server.listen(3099, () => {
+              http.get('http://127.0.0.1:3099/health', (res) => {
+                let data = '';
+                res.on('data', chunk => data += chunk);
+                res.on('end', () => {
+                  console.log('Health check status:', res.statusCode);
+                  console.log('Health response payload:', data);
+                  if (res.statusCode === 200 && data.includes('\"status\":\"ok\"')) {
+                    console.log('✅ Health check verification PASSED');
+                    server.close();
+                    process.exit(0);
+                  } else {
+                    console.error('❌ Health check verification FAILED');
+                    process.exit(1);
+                  }
+                });
+              }).on('error', (err) => {
+                console.error('❌ Request error:', err);
+                process.exit(1);
+              });
+            });
+          "
+        env:
+          PORT: 3099
+          NODE_ENV: production
+          FRONTEND_URL: "*"
+          TELEGRAM_BOT_TOKEN: mock_bot_token_for_verification
+          TELEGRAM_API_URL: https://api.telegram.org
+
+  deploy-preview-check:
+    name: Deployment Readiness Gate
+    needs: validate-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Verify Deployment Manifests
+        run: |
+          test -f vercel.json || (echo "vercel.json missing" && exit 1)
+          test -f api/index.js || (echo "api/index.js missing" && exit 1)
+          test -f package.json || (echo "root package.json missing" && exit 1)
+          echo "✅ All deployment artifacts verified for Vercel."

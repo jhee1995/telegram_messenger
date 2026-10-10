@@ -5,6 +5,9 @@ describe('config module', () => {
 
   beforeEach(() => {
     jest.resetModules();
+    jest.mock('dotenv', () => ({
+      config: jest.fn(),
+    }));
     process.env = { ...originalEnv };
   });
 

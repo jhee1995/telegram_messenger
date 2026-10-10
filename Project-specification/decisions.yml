@@ -30,7 +30,7 @@ environment:
     - FRONTEND_URL
 
 ci_cd:
-  platform: "Jenkins"
+  platform: "GitHub Actions & Jenkins"
   repository: "https://github.com/jhee1995/telegram_messenger.git"
   cloud: "Vercel"
 
