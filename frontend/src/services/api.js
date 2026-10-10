@@ -5,14 +5,9 @@
  * environment variable (.env) — no hardcoded URLs anywhere.
  */
 
-const BASE_URL = import.meta.env.VITE_BACKEND_URL;
-
-if (!BASE_URL) {
-  throw new Error(
-    '[api] VITE_BACKEND_URL is not defined. ' +
-      'Copy frontend/.env.example to frontend/.env and set a value.'
-  );
-}
+// When running in unified monorepo on Vercel (same-origin), BASE_URL can be empty string ('')
+// to use relative paths like '/api/send-message'. In local development, it points to http://localhost:3000.
+const BASE_URL = import.meta.env.VITE_BACKEND_URL || '';
 
 /**
  * @typedef {Object} SendMessagePayload
