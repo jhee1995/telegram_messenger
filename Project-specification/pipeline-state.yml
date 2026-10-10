@@ -26,9 +26,11 @@ gates:
     vercel_config: "completed"
     frontend_build_verified: "completed"
     snyk_jenkins_integration: "completed"
+    backend_remediation: "completed"
+    frontend_remediation: "completed"
     status: "passed"
   sign_off:
-    status: "pending"
+    status: "in_progress"
 
 stories:
   backlog:
