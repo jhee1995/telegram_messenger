@@ -8,6 +8,7 @@
 //   TELEGRAM_BOT_TOKEN   — Secret text — your Telegram Bot token
 //   APP_SECRET           — Secret text — 32-char random hex app secret
 //   SONAR_AUTH_TOKEN     — Secret text — SonarQube authentication token (o inyectado por withSonarQubeEnv)
+//   SNYK_API_TOKEN       — Secret text — Snyk API token for vulnerability scanning
 //
 // Required Jenkins environment variables (configure in pipeline or global config):
 //   FRONTEND_URL         — URL of the deployed frontend (e.g. http://your-server:8080)
@@ -174,6 +175,36 @@ pipeline {
             steps {
                 dir(FRONTEND_DIR) {
                     sh 'npm audit --audit-level=critical || true'
+                }
+            }
+        }
+
+        // ── 6. Snyk Security Scan (Pre-Build Gate) ───────────────
+        stage('Security Scan with Snyk') {
+            steps {
+                script {
+                    withCredentials([string(credentialsId: 'SNYK_API_TOKEN', variable: 'SNYK_TOKEN')]) {
+                        // Instalar CLI de Snyk si no está disponible en el agente
+                        sh '''
+                            if ! command -v snyk > /dev/null 2>&1; then
+                                echo "📦 Instalando Snyk CLI globalmente..."
+                                npm install -g snyk
+                            else
+                                echo "✔ Snyk CLI ya instalado: $(snyk --version)"
+                            fi
+                        '''
+
+                        // Autenticar con el token inyectado de forma segura
+                        sh 'snyk auth "${SNYK_TOKEN}"'
+
+                        // Ejecutar test de seguridad (falla si hay vulnerabilidades High o Critical)
+                        echo "🔍 Ejecutando análisis de vulnerabilidades en todos los proyectos..."
+                        sh 'snyk test --all-projects --severity-threshold=high'
+
+                        // Monitorear en Snyk (registra dependencias y resultados en el dashboard)
+                        echo "📊 Sincronizando estado y proyectos con el dashboard de Snyk..."
+                        sh 'snyk monitor --all-projects'
+                    }
                 }
             }
         }

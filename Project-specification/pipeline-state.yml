@@ -18,15 +18,25 @@ deployment:
 
 gates:
   analyst:
-    current_story: "US-002"
+    current_story: "US-003"
     status: "passed"
-    strategy_selected: "Option A (Unified Serverless Monorepo)"
+    strategy_selected: "Pre-Build Snyk Scan with --severity-threshold=high and snyk monitor"
   implementation:
     serverless_adapter: "completed"
     vercel_config: "completed"
     frontend_build_verified: "completed"
+    snyk_jenkins_integration: "completed"
     status: "passed"
   sign_off:
     status: "pending"
+
+stories:
+  backlog:
+    - id: "US-003"
+      epic: "EPIC-03"
+      title: "Integracion de Snyk Security Scan en Jenkins CI/CD"
+      priority: "Must Have (MVP)"
+      status: "ready_for_analyst"
+      file: "Project-specification/backlog/US-003-snyk-jenkins-pipeline-integration.md"
 
 last_updated: "2026-10-09"
