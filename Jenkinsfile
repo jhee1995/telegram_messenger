@@ -73,7 +73,7 @@ pipeline {
             }
         }
 
-        // ── 3. SonarQube Analysis ────────────────────────────────
+        // ── 3. SonarQube Analysis ─────────────────────────────
         stage('SonarQube Analysis') {
             steps {
                 script {
