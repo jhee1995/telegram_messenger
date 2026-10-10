@@ -32,7 +32,7 @@ environment:
 ci_cd:
   platform: "Jenkins"
   repository: "https://github.com/jhee1995/telegram_messenger.git"
-  cloud: "To be determined by CI/CD pipeline"
+  cloud: "Vercel"
 
 setup:
   project_structure: "completed"
