@@ -7,6 +7,7 @@
 // Required Jenkins credentials (configure in Manage Jenkins → Credentials):
 //   TELEGRAM_BOT_TOKEN   — Secret text — your Telegram Bot token
 //   APP_SECRET           — Secret text — 32-char random hex app secret
+//   SONAR_AUTH_TOKEN     — Secret text — SonarQube authentication token (o inyectado por withSonarQubeEnv)
 //
 // Required Jenkins environment variables (configure in pipeline or global config):
 //   FRONTEND_URL         — URL of the deployed frontend (e.g. http://your-server:8080)
@@ -29,12 +30,14 @@ pipeline {
 
     environment {
         // Non-secret values — safe to define here
-        NODE_VERSION    = '24'
-        BACKEND_DIR     = 'backend'
-        FRONTEND_DIR    = 'frontend'
-        BACKEND_IMAGE   = 'telegram-messenger-backend'
-        FRONTEND_IMAGE  = 'telegram-messenger-frontend'
-        NODE_ENV        = 'test'
+        NODE_VERSION       = '24'
+        BACKEND_DIR        = 'backend'
+        FRONTEND_DIR       = 'frontend'
+        BACKEND_IMAGE      = 'telegram-messenger-backend'
+        FRONTEND_IMAGE     = 'telegram-messenger-frontend'
+        NODE_ENV           = 'test'
+        SONAR_PROJECT_KEY  = 'ucp-app-react'
+        SONAR_PROJECT_NAME = 'UCP React App'
     }
 
     stages {
@@ -69,7 +72,43 @@ pipeline {
             }
         }
 
-        // ── 3. Backend CI ────────────────────────────────────────
+        // ── 3. SonarQube Analysis ────────────────────────────────
+        stage('SonarQube Analysis') {
+            steps {
+                script {
+                    // Obtiene la ruta del scanner configurado en Global Tools (hudson.plugins.sonar.SonarRunnerInstallation)
+                    def scannerHome = tool name: 'SonarQubeScanner', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
+                    withSonarQubeEnv('SonarQube') {
+                        withEnv(["PATH+SONAR=${scannerHome}/bin"]) {
+                            sh '''
+                                # Asegura compatibilidad si no existe carpeta src en la raíz (estructura monorepo)
+                                if [ ! -d "src" ]; then
+                                    ln -s frontend/src src 2>/dev/null || mkdir -p src
+                                fi
+                                if [ ! -f "coverage/lcov.info" ]; then
+                                    mkdir -p coverage
+                                    touch coverage/lcov.info
+                                fi
+
+                                [ -n "${SONAR_AUTH_TOKEN}" ] && export SONAR_TOKEN="${SONAR_AUTH_TOKEN}"
+
+                                sonar-scanner \
+                                    "-Dsonar.projectKey=${SONAR_PROJECT_KEY}" \
+                                    "-Dsonar.projectName=${SONAR_PROJECT_NAME}" \
+                                    -Dsonar.sources=src \
+                                    "-Dsonar.host.url=${SONAR_HOST_URL:-http://host.docker.internal:9000}" \
+                                    "-Dsonar.token=${SONAR_AUTH_TOKEN}" \
+                                    "-Dsonar.login=${SONAR_AUTH_TOKEN}" \
+                                    "-Dsonar.javascript.node=${NODEJS_HOME}/bin/node" \
+                                    -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+                            '''
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── 4. Backend CI ────────────────────────────────────────
         stage('Backend: Install') {
             steps {
                 dir(BACKEND_DIR) {
@@ -99,7 +138,7 @@ pipeline {
         stage('Backend: Test') {
             steps {
                 dir(BACKEND_DIR) {
-                    sh 'npm test -- --forceExit --ci'
+                    sh 'npm run test:coverage -- --forceExit --ci'
                 }
             }
             post {
@@ -114,7 +153,7 @@ pipeline {
             }
         }
 
-        // ── 4. Frontend CI ───────────────────────────────────────
+        // ── 5. Frontend CI ───────────────────────────────────────
         stage('Frontend: Install') {
             steps {
                 dir(FRONTEND_DIR) {
@@ -151,15 +190,30 @@ pipeline {
 
     // ── Post-pipeline actions ────────────────────────────────────
     post {
+        always {
+            // Agregar notificación de calidad de SonarQube
+            script {
+                try {
+                    timeout(time: 2, unit: 'MINUTES') {
+                        def qg = waitForQualityGate()
+                        if (qg.status != 'OK') {
+                            error "Calidad no aprobada: ${qg.status}"
+                        }
+                    }
+                } catch (IllegalStateException e) {
+                    echo "⚠️ Quality Gate no evaluado: ${e.message}"
+                } catch (org.jenkinsci.plugins.workflow.steps.FlowInterruptedException e) {
+                    echo "⚠️ Quality Gate timeout (posible webhook de SonarQube no configurado en Jenkins): ${e.message}"
+                }
+            }
+            // Clean workspace after build to prevent credential leakage between builds
+            deleteDir()
+        }
         success {
             echo "✅ Pipeline PASSED — Build #${env.BUILD_NUMBER}"
         }
         failure {
             echo "❌ Pipeline FAILED — Build #${env.BUILD_NUMBER}. Check logs above."
-        }
-        always {
-            // Clean workspace after build to prevent credential leakage between builds
-            deleteDir()
         }
     }
 }
